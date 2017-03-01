@@ -81,7 +81,6 @@ ul.tab li a:hover {background-color: #ddd;}
 ul.tab li a:focus, .active {background-color: #ccc;}
 
 
-
 /* Style the tab content */
 .tabcontent {
     display: none;
