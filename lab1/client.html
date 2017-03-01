@@ -75,7 +75,7 @@
     <script type="text/view" id="profileview">
         <div class="container">
             <ul class='tab'>
-                <li><a href="javascript:void(0)" class="tablinks" onclick="openTab(event,'Home')">Home</a></li>
+                <li><a href="javascript:void(0)" class="tablinks active" onclick="openTab(event,'Home')">Home</a></li>
                 <li><a href="javascript:void(0)" class="tablinks" onclick="openTab(event,'Browse')">Browse</a></li>
                 <li><a href="javascript:void(0)" class="tablinks" onclick="openTab(event,'Account')">Account</a></li>
             </ul>
@@ -120,11 +120,11 @@
                     <form action="" onsubmit="changePassword(); return false;">
                         <div>
                             <label>Old Password</label>
-                            <input type="text" name="oldpw" required>
+                            <input type="password" name="oldpw" required>
                         </div>
                         <div>
                             <label>New Password</label>
-                            <input type="text" name="newpw" required>
+                            <input type="password" name="newpw" required>
                         </div>
 						<div id="accountAlert"></div>
                         <div>

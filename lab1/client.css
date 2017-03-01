@@ -33,12 +33,6 @@ div.signup {
     background-color: white;
 }
 
-/*div.signin label { 
-	display: inline-block; 
-	width: 70px; 
-	text-align: left; 
-}*/
-
 
 div label {
 	display: inline-block; 
@@ -85,6 +79,8 @@ ul.tab li a:hover {background-color: #ddd;}
 
 /* Create an active/current tablink class */
 ul.tab li a:focus, .active {background-color: #ccc;}
+
+
 
 /* Style the tab content */
 .tabcontent {
