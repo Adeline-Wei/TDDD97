@@ -27,7 +27,7 @@
             </div>
             <div class="signup">
                 <h3>Sign up here</h3>
-                <form action="" method="POST" onsubmit="signUpValidation();return false;" id="signupform">
+                <form method="POST" onsubmit="signUpValidation();return false;" id="signupform">
                     <div>
                         <label>First name</label>
                         <input type="text" name="firstname" required>
@@ -74,7 +74,7 @@
     <script type="text/view" id="profileview">
         <div class="container">
             <ul class='tab'>
-                <li><a href="javascript:void(0)" class="tablinks" onclick="openTab(event,'Home')">Home</a></li>
+                <li><a href="javascript:void(0)" class="tablinks active" onclick="openTab(event,'Home')">Home</a></li>
                 <li><a href="javascript:void(0)" class="tablinks" onclick="openTab(event,'Browse')">Browse</a></li>
                 <li><a href="javascript:void(0)" class="tablinks" onclick="openTab(event,'Account')">Account</a></li>
             </ul>
@@ -96,7 +96,7 @@
 				<div id="searchUser">
 					<h3>Please enter the email:</h3>		
 					<input type="text" id="userEmail"></input>
-					<button onclick="getUserData('Browse');getUserMessages('Browse'); return false;">FIND</button>
+					<button onclick="getUserData('Browse');return false;">FIND</button>
 				</div>
 				<div id="browseAlert"></div>
 				<div id="ifUserFounded">
@@ -119,11 +119,11 @@
                     <form action="" onsubmit="changePassword(); return false;">
                         <div>
                             <label>Old Password</label>
-                            <input type="text" name="oldpw" required>
+                            <input type="password" name="oldpw" required>
                         </div>
                         <div>
                             <label>New Password</label>
-                            <input type="text" name="newpw" required>
+                            <input type="password" name="newpw" required>
                         </div>
 						<div id="accountAlert"></div>
                         <div>

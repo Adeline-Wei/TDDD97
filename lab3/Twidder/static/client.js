@@ -11,7 +11,6 @@ displayProfileView = function(){
 	// Show the default tab
 	document.getElementById('Home').style.display = "block";
 	getUserData('Home');
-	getUserMessages('Home');
 };
 
 window.onload = function(){
@@ -28,14 +27,47 @@ window.onload = function(){
 sendSignInInformation = function(){
     var email = document.getElementsByName("emailsignin")[0].value;
     var password = document.getElementsByName("pwsignin")[0].value;
-    var sendBackMessage = serverstub.signIn(email, password);
-    if (sendBackMessage.success == true){
-		localStorage.setItem('token', sendBackMessage.data);		// UPDATE: store token in the localstorage without the help from serverstub.js
-        displayProfileView();
+    var infoObj = JSON.stringify({
+        'email':email,
+        'password':password
+    });
+    var con = new XMLHttpRequest();
+    con.onreadystatechange = function() {
+        if (con.readyState == 4 && con.status == 200) {
+            console.log("[Success] SIGN_IN ("+con.readyState+")");
+            var response = JSON.parse(con.responseText);
+            if (response['status'] == 200) {
+                socket = new WebSocket("ws://127.0.0.1:5001/check_unique_login");
+                socket.onopen = function() {
+                    console.log("SOCKET_OPENED");
+                    socket.send(email);
+                }
+                socket.onmessage = function (event) {
+                    console.log("ONMESSAGE");
+                    console.log(event.data);
+                    if (event.data == "BYE") {
+                        console.log("Need to be signed out.");
+                        signOut();
+                    }
+                }
+                socket.onerror = function (error) {
+                    console.log(error);
+                }
+                document.getElementById("signInAlert").innerHTML = "";
+                localStorage.setItem('token', response['token']);
+                displayProfileView();
+            }
+            else {
+                document.getElementById("signInAlert").innerHTML = "Sign in failed";
+            }
+        }
+        else {
+            console.log("[Error] SIGN_IN ("+con.readyState+")");
+        }
     }
-	else {
-		document.getElementById("signInAlert").innerHTML = sendBackMessage.message;
-	}
+    con.open("POST", '/sign_in', true);
+    con.setRequestHeader("Content-Type", "application/json");
+    con.send(infoObj);
 };
 
 signInValidation = function() {
@@ -73,15 +105,33 @@ sendSignUpInformation = function(){
     con.onreadystatechange = function () {
         if (con.readyState == 4 && con.status == 200) {
             var response = JSON.parse(con.responseText);
-            console.log(response['status']);
-            displayProfileView();
+            if (response['status'] == 200) {
+                var infoObj2 = JSON.stringify({
+                    'email':email,
+                    'password':password
+                });
+                var con2 = new XMLHttpRequest();
+                con2.onreadystatechange = function() {
+                    if (con2.readyState == 4 && con2.status == 200) {
+                        var response2 = JSON.parse(con2.responseText);
+                        console.log("Token:" + response2['token']);
+                        localStorage.setItem('token', response2['token']);
+                        displayProfileView();
+                    }
+                }
+                con2.open("POST", '/sign_in', true);
+                con2.setRequestHeader("Content-Type", "application/json");
+                con2.send(infoObj2);
+            }
+            else {
+                console.log("[Error] The second step in SIGN_UP." + response['status']);
+            }
         }
         else {
         }
     };
     con.open("POST", '/sign_up', true);
     con.setRequestHeader("Content-Type", "application/json");
-    console.log(infoObj);
     con.send(infoObj);
 };
 
@@ -113,12 +163,12 @@ openTab = function(evt, tabName) {
      // Get all elements with class="tablinks" and remove the class "active"
      tablinks = document.getElementsByClassName("tablinks");
      for (i = 0; i < tablinks.length; i ++){
-        tablinks[i].className = tablinks[i].className.replace("active", "");
+         tablinks[i].classList.remove("active");
      }
 
 	// Show the current tab, and add an "active" class to the link that opened the tab
 	document.getElementById(tabName).style.display = "block";
-	evt.currentTarget.className += "active";
+    evt.currentTarget.classList.add("active");
 	 
 	if (tabName == "Home") {
 		getUserData(tabName);
@@ -127,74 +177,139 @@ openTab = function(evt, tabName) {
 	// Decide to show the rest of elements except email search bar.
 	else if (tabName == "Browse") {
 		document.getElementById("ifUserFounded").style.display = 'none';
+        if (document.getElementById("userEmail").value) {
+            getUserData("Browse");
+        }
 	}
 };
 
 // Home & Browse
 getUserData = function(tabName) {
-	var token = localStorage.getItem("token");    
-	var sendBackMessage = "";
-    var email = "";
-	var data = "";
+	var token = localStorage.getItem("token");
     if (tabName == "Home") {
-        sendBackMessage = serverstub.getUserDataByToken(token);
-		// ******** Collect all data of the user, and append those info as a string. Then, innerHTML
-		data = "Email: " + sendBackMessage.data.email + "<br>" + "Firstname: " + sendBackMessage.data.firstname + "<br>" + "Familyname: " + sendBackMessage.data.familyname + "<br>" + "Gender: " + sendBackMessage.data.gender + "<br>" + "City: " + sendBackMessage.data.city + "<br>" + "Country: " + sendBackMessage.data.country + "<br>";
-    document.getElementById("userData"+tabName).innerHTML = data;
+        var con = new XMLHttpRequest();
+        con.onreadystatechange = function() {
+            if (con.readyState == 4 && con.status == 200) {
+                console.log("[Success] GET_USER_DATA ("+con.readyState+")");
+                var response = JSON.parse(con.responseText);
+                var data = "Email: " + response['data']['email'] + "<br>" + "Firstname: " + response['data']['firstname'] + "<br>" + "Familyname: " + response['data']['familyname'] + "<br>" + "Gender: " + response['data']['gender'] + "<br>" + "City: " + response['data']['city'] + "<br>" + "Country: " + response['data']['country'] + "<br>";
+                document.getElementById("userData"+tabName).innerHTML = data;
+                getUserMessages('Home');
+            }
+            else {
+                console.log("[Error] GET_USER_DATA ("+con.readyState+")");
+            }
+        }
+        con.open("GET", '/get_user_data_by_token?token='+token, true);
+        con.send(null);
     }
     else {
-        email = document.getElementById("userEmail").value;
-        sendBackMessage = serverstub.getUserDataByEmail(token, email);
-		if (sendBackMessage.success == false) {
-			document.getElementById("browseAlert").innerHTML = sendBackMessage.message;
-			document.getElementById("ifUserFounded").style.display = 'none';
-			document.getElementById("userEmail").value = "";
-		}
-		else {
-			document.getElementById("browseAlert").innerHTML = "";
-			document.getElementById("ifUserFounded").style.display = 'block';
-			data = "Email: " + sendBackMessage.data.email + "<br>" + "Firstname: " + sendBackMessage.data.firstname + "<br>" + "Familyname: " + sendBackMessage.data.familyname + "<br>" + "Gender: " + sendBackMessage.data.gender + "<br>" + "City: " + sendBackMessage.data.city + "<br>" + "Country: " + sendBackMessage.data.country + "<br>";
-    document.getElementById("userData"+tabName).innerHTML = data;
-		}
+        var email = document.getElementById("userEmail").value;
+        var con = new XMLHttpRequest();
+        con.onreadystatechange = function() {
+            if (con.readyState == 4 && con.status == 200) {
+                var response = JSON.parse(con.responseText);
+                console.log("[Success] GET_USER_DATA ("+con.readyState+")");
+                if (response['status'] == 200) {
+                    document.getElementById("browseAlert").innerHTML = "";
+			        document.getElementById("ifUserFounded").style.display = 'block';
+			        var data = "Email: " + response['result'][1] + "<br>" + "Firstname: " + response['result'][3] + "<br>" + "Familyname: " + response['result'][4] + "<br>" + "Gender: " + response['result'][5] + "<br>" + "City: " + response['result'][6] + "<br>" + "Country: " + response['result'][7] + "<br>";
+                    document.getElementById("userData"+tabName).innerHTML = data;
+                    getUserMessages('Browse');
+                }
+                else {
+                    document.getElementById("browseAlert").innerHTML = "No such user.";
+			        document.getElementById("ifUserFounded").style.display = 'none';
+			        document.getElementById("userEmail").value = "";
+                }
+            }
+            else {
+                console.log("[Error] GET_USER_DATA ("+con.readyState+")");
+            }
+        }
+        con.open("GET", '/get_user_data_by_email?token='+token+'&email='+email, true);
+        con.send(null);
     }
 };
 
 getUserTextarea = function(tabName) {
-
-	var token = localStorage.getItem("token");    
-	var data = serverstub.getUserDataByToken(token);
+	var token = localStorage.getItem("token");
 	var text = document.getElementById("userTextarea"+tabName).value;
 	if (text != "") {
 		var email = "";
 		if (tabName == "Home") {
-			   email = data.data.email;
+			   email = "";
 		}
 		else {
-			   email = document.getElementById("userEmail").value;
-		}
-
-		var sendBackMessage = serverstub.postMessage(token, text, email);
-		document.getElementById("userTextarea"+tabName).value = "";
+            email = document.getElementById("userEmail").value;
+        }
+        var infoObj = JSON.stringify({
+            'token':token,
+            'email':email,
+            'message':text
+        });
+        var con = new XMLHttpRequest();
+        con.onreadystatechange = function() {
+            if (con.readyState == 4 && con.status == 200) {
+                var response = JSON.parse(con.responseText);
+                console.log("[Success] GET_USER_TEXTAREA ("+con.readyState+")");
+                document.getElementById("userTextarea"+tabName).value = "";
+            }
+            else {
+                console.log("[Error] GET_USER_TEXTAREA ("+con.readyState+")");
+            }
+        }
+        con.open("POST", '/post_message', true);
+        con.setRequestHeader("Content-Type", "application/json");
+        con.send(infoObj);
     }
 };
 
 getUserMessages = function(tabName) {
-	var token = localStorage.getItem("token");	
-	var sendBackMessage = "";
+	var token = localStorage.getItem("token");
 	if (tabName == "Home"){
-		sendBackMessage = serverstub.getUserMessagesByToken(token);
+        var con = new XMLHttpRequest();
+        con.onreadystatechange = function() {
+            if (con.readyState == 4 && con.status == 200) {
+                var response = JSON.parse(con.responseText);
+                console.log("[Success] GET_USER_MESSAGES ("+con.readyState+")");
+                objs = response['messages'];
+                console.log(objs);
+	            var messages = "";
+	            for (var i in objs) {
+		            messages = messages + (objs[i][0] + " said: " + objs[i][1] + "<br>");
+	            }
+	            document.getElementById("userMessages"+tabName).innerHTML = messages;
+            }
+            else {
+                console.log("[Error] GET_USER_MESSAGES ("+con.readyState+")");
+            }
+        }
+        con.open("GET", '/get_user_messages_by_token?token='+token, true);
+        con.send(null);
 	}
 	else {
 		var email = document.getElementById("userEmail").value;
-		sendBackMessage = serverstub.getUserMessagesByEmail(token, email);
-		if (sendBackMessage.message == false) return false;
+        var con = new XMLHttpRequest();
+        con.onreadystatechange = function() {
+            if (con.readyState == 4 && con.status == 200) {
+                var response = JSON.parse(con.responseText);
+                console.log("[Success] GET_USER_MESSAGES ("+con.readyState+")");
+                objs = response['messages'];
+	            var messages = "";
+	            for (var i in objs) {
+		            messages = messages + (objs[i][0] + " said: " + objs[i][1] + "<br>");
+	            }
+	            document.getElementById("userMessages"+tabName).innerHTML = messages;
+            }
+            else {
+                console.log("[Error] GET_USER_MESSAGES ("+con.readyState+")");
+                //return false;
+            }
+        }
+        con.open("GET", '/get_user_messages_by_email?token='+token+'&email='+email, true);
+        con.send(null);
 	}
-	objs = sendBackMessage.data;
-	var messages = "";
-	for (var i in objs) {
-		messages = messages + (objs[i].writer + " said: " + objs[i].content + "<br>");
-	}
-	document.getElementById("userMessages"+tabName).innerHTML = messages;
 };
 
 
@@ -208,16 +323,47 @@ changePassword = function() {
         return false;
     }
 	var token = localStorage.getItem("token");
-    var sendBackMessage = serverstub.changePassword(token, oldPassword, newPassword);
-    document.getElementById("accountAlert").innerHTML = sendBackMessage.message;
+    var infoObj = JSON.stringify({
+        'token':token,
+        'old_pw':oldPassword,
+        'new_pw':newPassword
+    });
+    var con = new XMLHttpRequest();
+    con.onreadystatechange = function() {
+        if (con.readyState == 4 && con.status == 200) {
+            var response = JSON.parse(con.responseText);
+            console.log("[Success] CHANGE_PASSWORD ("+con.readyState+")");
+            if (response['status'] == 200) {
+                document.getElementById("accountAlert").innerHTML = "Password changed!";
+            }
+            else {
+                document.getElementById("accountAlert").innerHTML = "Password change failed";
+            }
+        }
+        else {
+            console.log("[Error] CHANGE_PASSWORD ("+con.readyState+")");
+        }
+    }
+    con.open("POST", '/change_password', true);
+    con.setRequestHeader("Content-Type", "application/json");
+    con.send(infoObj);
 };
 
 
 signOut = function() {
 	var token = localStorage.getItem('token');
-    var sendBackMessage = serverstub.signOut(token);
-    if (sendBackMessage.success == true) {
-		localStorage.removeItem("token");
-        displayWelcomeView();
-    }
+    var con = new XMLHttpRequest();
+        con.onreadystatechange = function() {
+            if (con.readyState == 4 && con.status == 200) {
+                var response = JSON.parse(con.responseText);
+                console.log("[Success] SIGN_OUT ("+con.readyState+")");
+                localStorage.removeItem('token');
+                displayWelcomeView();
+            }
+            else {
+                console.log("[Error] SIGN_OUT ("+con.readyState+")");
+            }
+        }
+        con.open("GET", '/sign_out?token='+token, true);
+        con.send(null);
 };

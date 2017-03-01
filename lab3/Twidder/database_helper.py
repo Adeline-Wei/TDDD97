@@ -84,11 +84,18 @@ def change_password(token, old_pw, new_pw):
     global DB
     # Format: [(2, u'123', u'BfK3nE71lA3YsPdWRp9SJ315gL5U9gwGZSkP')]
     result = DB.cursor().execute("SELECT email FROM Logins WHERE token = ?;", [token]).fetchall()
-    if result:
-        email = result[0][0]
-        DB.cursor().execute("UPDATE Users SET password = ? WHERE email = ? AND password = ?;", [new_pw,email,old_pw])
-        DB.commit()
-        return True
+    result2 = DB.cursor().execute("SELECT password FROM Users WHERE email = ?;", [result[0][0]]).fetchall()
+    if old_pw == result2[0][0]:
+        if result:
+            email = result[0][0]
+            result = DB.cursor().execute("UPDATE Users SET password = ? WHERE email = ? AND password = ?;", [new_pw,email,old_pw])
+            DB.commit()
+            if result:
+                return True
+            else:
+                return False
+        else:
+            return False
     else:
         print ('An Exception Occurs In CHANGE PASSWORD Function.')
         return False
@@ -114,13 +121,13 @@ def find_user_message(token, email=None):
     if result and email:
         result = DB.cursor().execute("SELECT uid FROM Users WHERE email = ?;", [email]).fetchall()
         if result:
-            result = DB.cursor().execute("SELECT mid, content FROM Messages WHERE uid = ?;", [result[0][0]]).fetchall()
+            result = DB.cursor().execute("SELECT from_uid, content FROM Messages WHERE uid = ?;", [result[0][0]]).fetchall()
             return True, result
         else:
             print ('FIND_USER_MESSAGE: No corresponding email.')
             return False
     elif result:
-        result = DB.cursor().execute("SELECT mid, content FROM Messages WHERE uid = ?;", [result[0][0]]).fetchall()
+        result = DB.cursor().execute("SELECT from_uid, content FROM Messages WHERE uid = ?;", [result[0][0]]).fetchall()
         return True, result
     else:
         print ('An Exception Occurs In FIND_USER_MESSAGE')
@@ -129,14 +136,32 @@ def find_user_message(token, email=None):
 
 def add_message(token, message, email):
     global DB
-    result1 = DB.cursor().execute("SELECT uid FROM Logins WHERE token = ?;", [token]).fetchall()
-    result2 = DB.cursor().execute("SELECT uid FROM Users WHERE email = ?;", [email]).fetchall()
-    if result1 and result2:
-        DB.cursor().execute("INSERT INTO Messages VALUES (?,?,?,?);", [None,result2[0][0],result1[0][0],message])
+    result1 = DB.cursor().execute("SELECT uid, email FROM Logins WHERE token = ?;", [token]).fetchall()
+    if email == '':
+        DB.cursor().execute("INSERT INTO Messages VALUES (?,?,?,?);", [None,result1[0][0],result1[0][1],message])
         DB.commit()
         return True
     else:
-        print ('ADD_MESSAGE: No corresponding email.')
+        result2 = DB.cursor().execute("SELECT uid FROM Users WHERE email = ?;", [email]).fetchall()
+        if result2:
+            DB.cursor().execute("INSERT INTO Messages VALUES (?,?,?,?);", [None,result2[0][0],result1[0][1],message])
+            DB.commit()
+            return True
+        else:
+            print ('ADD_MESSAGE: No corresponding email.')
+            return False
+
+
+def check_unique_sign_in_user(email, token):
+    global DB
+    result = DB.cursor().execute("SELECT token FROM Logins WHERE email = ? and token <> ?;", [email, token]).fetchall()
+    if result:
+        DB.cursor().execute("DELETE FROM Logins WHERE email = ? and token = ?;", [email, result[0][0]]).fetchall()
+        DB.commit()
+        print('DATABASE_HELPER:', result[0][0])
+        return result[0][0]
+    else:
+        print ('CHECK_UNIQUE_SIGN_IN_USER: unique logging.')
         return False
 
 

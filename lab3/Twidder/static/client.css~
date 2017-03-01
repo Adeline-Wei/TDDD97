@@ -68,10 +68,6 @@ ul.tab li {
     float: left;
 }
 
-.tablinksactiveactive {
-    background-color: brown;
-}
-
 /* Style the links inside the list items */
 ul.tab li a {
     display: inline-block;
@@ -88,9 +84,7 @@ ul.tab li a {
 ul.tab li a:hover {background-color: #ddd;}
 
 /* Create an active/current tablink class */
-ul.tab li a:focus, .active {background-color: #ccc;}
-
-
+ul.tab li a:focus, .active {background-color: #ddd;}
 
 /* Style the tab content */
 .tabcontent {
