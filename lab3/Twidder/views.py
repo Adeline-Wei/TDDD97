@@ -119,20 +119,6 @@ def post_message():
         return jsonify({"status": 400})
 
 
-# @app.route('/check_unique_login')
-# def check_unique_login():
-#     if request.environ.get('wsgi.websocket'):
-#         ws = request.environ['wsgi.websocket']
-#         while True:
-#             email = ws.receive()
-#             try:
-#                 active_connections[email].send('BYE')
-#                 active_connections[email] = ws
-#             except KeyError:
-#                 for active_connection in active_connections.keys():
-#                     active_connections[active_connection].send('NEW_LOGIN')
-#                 active_connections[email] = ws
-#     return
 @app.route('/send_notification')
 def send_notification():
     if request.environ.get('wsgi.websocket'):
@@ -187,6 +173,5 @@ def init_database():
 
 if __name__ == "__main__":
     init_database()
-    # app.run(debug=True, port=5001)
     http_server = WSGIServer(('', 5001), app, handler_class=WebSocketHandler)
     http_server.serve_forever()
