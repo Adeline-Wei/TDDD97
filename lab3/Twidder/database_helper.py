@@ -153,18 +153,6 @@ def add_message(token, message, search_email):
             return False
 
 
-def check_unique_sign_in_user(email, token):
-    global DB
-    result = DB.cursor().execute("SELECT token FROM Logins WHERE email = ? and token <> ?;", [email, token]).fetchall()
-    if result:
-        DB.cursor().execute("DELETE FROM Logins WHERE email = ? and token = ?;", [email, result[0][0]]).fetchall()
-        DB.commit()
-        print('DATABASE_HELPER:', result[0][0])
-        return result[0][0]
-    else:
-        print ('CHECK_UNIQUE_SIGN_IN_USER: unique logging.')
-        return False
-
 
 def add_viewed_time(viewed_email):
     global DB
