@@ -4,12 +4,6 @@ notificationHandler = function(signal){
     if (signal == "BYE") {
         signOut('KICK');
     }
-    else if (signal == "NEW_LOGIN" || signal == "NEW_LOGOUT") {
-        showChart();
-    }
-    else if (signal == "NEW_POST") {
-        showChart();
-    }
 };
 
 displayWelcomeView = function(){
@@ -25,7 +19,6 @@ displayProfileView = function(){
 	// Show the default tab
 	document.getElementById('Home').style.display = "block";
 	getUserData('Home');
-    showChart();
 };
 
 window.onload = function(){
@@ -411,28 +404,5 @@ addViewedTime = function() {
         }
     }
     con.open("GET", '/add_viewed_time?viewed_email='+viewed_email, true);
-    con.send(null);
-};
-
-
-showChart = function() {
-    var email = localStorage.getItem('email');
-    var con = new XMLHttpRequest();
-    con.onreadystatechange = function() {
-        if (con.readyState == 4 && con.status == 200) {
-            var response = JSON.parse(con.responseText);
-            console.log("[Success] SHOW_CHART ("+con.readyState+")");
-            //var data = [response['num_cur_onlines'], response['num_posts'], response['num_views']]
-            var data = [{"label":"online","value":response['num_cur_onlines']},{"label":"post","value":response['num_posts']},{"label":"view","value":response['num_views']}]
-            console.log(data);
-            d3.select(".chart").selectAll("div").remove();
-            //d3.select(".chart").selectAll("div").data(data).enter().append("div").style("width", function(d) { return d * 10 + "px"; }).text(function(d) { return d; });
-            d3.select(".chart").selectAll("div").data(data).enter().append("div").style("width", function(d) { return d.value * 10 + "px"; }).text(function(d) { return d.value; }).yLabel(function(d){return d.label;});
-        }
-        else {
-            //console.log("[Error] SHOW_CHART ("+con.readyState+")");
-        }
-    }
-    con.open("GET", '/show_chart?email='+email, true);
     con.send(null);
 };

@@ -83,7 +83,6 @@ def remove_sign_in_user(token):
 
 def change_password(token, old_pw, new_pw):
     global DB
-    # Format: [(2, u'123', u'BfK3nE71lA3YsPdWRp9SJ315gL5U9gwGZSkP')]
     result = DB.cursor().execute("SELECT email FROM Logins WHERE token = ?;", [token]).fetchall()
     result2 = DB.cursor().execute("SELECT password FROM Users WHERE email = ?;", [result[0][0]]).fetchall()
     if old_pw == result2[0][0]:
@@ -173,13 +172,6 @@ def add_viewed_time(viewed_email):
     DB.commit()
     return True
 
-
-def show_chart(email):
-    global DB
-    num_cur_onlines = DB.cursor().execute("SELECT COUNT(lid) FROM Logins;").fetchall()
-    num_posts = DB.cursor().execute("SELECT COUNT(mid) FROM Messages WHERE to_user = ?;", [email]).fetchall()
-    num_views = DB.cursor().execute("SELECT times FROM Views WHERE email = ?;", [email]).fetchall()
-    return num_cur_onlines[0][0], num_posts[0][0], num_views[0][0]
 
 
 def close():

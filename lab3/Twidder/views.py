@@ -138,10 +138,6 @@ def send_notification():
                 print(active_connections)
                 del active_connections[message['data']]
                 print(active_connections)
-                for active_connection in active_connections.keys():
-                        active_connections[active_connection].send('NEW_LOGOUT')
-            elif message['signal'] == 'NOTIFY_POST':
-                active_connections[message['data']].send('NEW_POST')
             else:
                 pass
     return
@@ -154,11 +150,6 @@ def add_viewed_time():
     return jsonify(result=result)
 
 
-@app.route('/show_chart')
-def show_chart():
-    email = request.args.get('email')
-    num_cur_onlines, num_posts, num_views = database_helper.show_chart(email)
-    return jsonify({'num_cur_onlines': num_cur_onlines, 'num_posts': num_posts, 'num_views': num_views})
 
 
 DATABASE = 'database.db'
