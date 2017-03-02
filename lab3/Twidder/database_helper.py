@@ -30,7 +30,8 @@ def get_db(db_name):
 def add_user(email,password,firstname,familyname,gender,city,country):
     global DB
     try:
-        DB.cursor().execute('INSERT INTO Users VALUES (?,?,?,?,?,?,?,?);', [None,email,password,firstname,familyname,gender,city,country])
+        DB.cursor().execute('INSERT INTO Users VALUES (?,?,?,?,?,?,?);', [email,password,firstname,familyname,gender,city,country])
+        DB.cursor().execute('INSERT INTO Views VALUES (?,?,?);', [None, email, 0])
         DB.commit()
         return True
     except Exception:
@@ -58,10 +59,10 @@ def find_user(email,password=None,status=None):
             return False
 
 
-def add_sign_in_user(uid, email, token):
+def add_sign_in_user(email, token):
     global DB
     try:
-        DB.cursor().execute("INSERT INTO Logins VALUES (?,?,?,?);", [None,uid,email,token])
+        DB.cursor().execute("INSERT INTO Logins VALUES (?,?,?);", [None,email,token])
         DB.commit()
         return True
     except:
@@ -107,7 +108,7 @@ def find_sign_in_user(token):
     result = DB.cursor().execute("SELECT email FROM Logins WHERE token = ?;", [token]).fetchall()
     if result:
         email = result[0][0]
-        result = DB.cursor().execute("SELECT uid,email,firstname,familyname,gender,city,country FROM Users WHERE email = ?;", [email]).fetchall()
+        result = DB.cursor().execute("SELECT email,firstname,familyname,gender,city,country FROM Users WHERE email = ?;", [email]).fetchall()
         DB.commit()
         return result[0]
     else:
@@ -115,36 +116,37 @@ def find_sign_in_user(token):
         return False
 
 
-def find_user_message(token, email=None):
+def find_user_message(token, search_email=None):
     global DB
-    result = DB.cursor().execute("SELECT uid FROM Logins WHERE token = ?;", [token]).fetchall()
-    if result and email:
-        result = DB.cursor().execute("SELECT uid FROM Users WHERE email = ?;", [email]).fetchall()
-        if result:
-            result = DB.cursor().execute("SELECT from_uid, content FROM Messages WHERE uid = ?;", [result[0][0]]).fetchall()
+    print('current_token:',token)
+    current_user = DB.cursor().execute("SELECT email FROM Logins WHERE token = ?;", [token]).fetchall()
+    if current_user and search_email:
+        searched_user = DB.cursor().execute("SELECT email FROM Users WHERE email = ?;", [search_email]).fetchall()
+        if searched_user[0][0]:
+            result = DB.cursor().execute("SELECT from_user, content FROM Messages WHERE to_user = ?;", [search_email]).fetchall()
             return True, result
         else:
             print ('FIND_USER_MESSAGE: No corresponding email.')
             return False
-    elif result:
-        result = DB.cursor().execute("SELECT from_uid, content FROM Messages WHERE uid = ?;", [result[0][0]]).fetchall()
+    elif current_user:
+        result = DB.cursor().execute("SELECT from_user, content FROM Messages WHERE to_user = ?;", [current_user[0][0]]).fetchall()
         return True, result
     else:
         print ('An Exception Occurs In FIND_USER_MESSAGE')
         return False
 
 
-def add_message(token, message, email):
+def add_message(token, message, search_email):
     global DB
-    result1 = DB.cursor().execute("SELECT uid, email FROM Logins WHERE token = ?;", [token]).fetchall()
-    if email == '':
-        DB.cursor().execute("INSERT INTO Messages VALUES (?,?,?,?);", [None,result1[0][0],result1[0][1],message])
+    current_user = DB.cursor().execute("SELECT email FROM Logins WHERE token = ?;", [token]).fetchall()
+    if search_email == '':
+        DB.cursor().execute("INSERT INTO Messages VALUES (?,?,?,?);", [None,current_user[0][0],current_user[0][0],message])
         DB.commit()
         return True
     else:
-        result2 = DB.cursor().execute("SELECT uid FROM Users WHERE email = ?;", [email]).fetchall()
+        result2 = DB.cursor().execute("SELECT email FROM Users WHERE email = ?;", [search_email]).fetchall()
         if result2:
-            DB.cursor().execute("INSERT INTO Messages VALUES (?,?,?,?);", [None,result2[0][0],result1[0][1],message])
+            DB.cursor().execute("INSERT INTO Messages VALUES (?,?,?,?);", [None,search_email,current_user[0][0],message])
             DB.commit()
             return True
         else:
@@ -163,6 +165,21 @@ def check_unique_sign_in_user(email, token):
     else:
         print ('CHECK_UNIQUE_SIGN_IN_USER: unique logging.')
         return False
+
+
+def add_viewed_time(viewed_email):
+    global DB
+    DB.cursor().execute("UPDATE Views SET times = times + 1 WHERE email = ?;", [viewed_email])
+    DB.commit()
+    return True
+
+
+def show_chart(email):
+    global DB
+    num_cur_onlines = DB.cursor().execute("SELECT COUNT(lid) FROM Logins;").fetchall()
+    num_posts = DB.cursor().execute("SELECT COUNT(mid) FROM Messages WHERE to_user = ?;", [email]).fetchall()
+    num_views = DB.cursor().execute("SELECT times FROM Views WHERE email = ?;", [email]).fetchall()
+    return num_cur_onlines[0][0], num_posts[0][0], num_views[0][0]
 
 
 def close():

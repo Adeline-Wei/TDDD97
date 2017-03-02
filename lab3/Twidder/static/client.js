@@ -1,3 +1,17 @@
+var socket = "";
+
+notificationHandler = function(signal){
+    if (signal == "BYE") {
+        signOut('KICK');
+    }
+    else if (signal == "NEW_LOGIN" || signal == "NEW_LOGOUT") {
+        showChart();
+    }
+    else if (signal == "NEW_POST") {
+        showChart();
+    }
+};
+
 displayWelcomeView = function(){
 	var wv = document.getElementById("welcomeview");
     document.body.innerHTML = wv.text;
@@ -11,6 +25,7 @@ displayProfileView = function(){
 	// Show the default tab
 	document.getElementById('Home').style.display = "block";
 	getUserData('Home');
+    showChart();
 };
 
 window.onload = function(){
@@ -37,24 +52,21 @@ sendSignInInformation = function(){
             console.log("[Success] SIGN_IN ("+con.readyState+")");
             var response = JSON.parse(con.responseText);
             if (response['status'] == 200) {
-                socket = new WebSocket("ws://127.0.0.1:5001/check_unique_login");
+                socket = new WebSocket("ws://127.0.0.1:5001/send_notification");
                 socket.onopen = function() {
-                    console.log("SOCKET_OPENED");
-                    socket.send(email);
+                    console.log("SEND LOGIN NOTIFICATION");
+                    socket.send(JSON.stringify({"signal":"NOTIFY_LOGIN","data":email}));
                 }
                 socket.onmessage = function (event) {
-                    console.log("ONMESSAGE");
-                    console.log(event.data);
-                    if (event.data == "BYE") {
-                        console.log("Need to be signed out.");
-                        signOut();
-                    }
+                    console.log("[ONMESSAGE] ", event.data);
+                    notificationHandler(event.data);
                 }
                 socket.onerror = function (error) {
                     console.log(error);
                 }
                 document.getElementById("signInAlert").innerHTML = "";
                 localStorage.setItem('token', response['token']);
+                localStorage.setItem('email', email);
                 displayProfileView();
             }
             else {
@@ -116,6 +128,13 @@ sendSignUpInformation = function(){
                         var response2 = JSON.parse(con2.responseText);
                         console.log("Token:" + response2['token']);
                         localStorage.setItem('token', response2['token']);
+                        localStorage.setItem('email', email);
+                        if (socket == "") {
+                            socket = new WebSocket("ws://127.0.0.1:5001/send_notification");
+                            socket.onopen = function () {
+                                socket.send(JSON.stringify({"signal": "NOTIFY_LOGIN", "data": email}));
+                            }
+                        }
                         displayProfileView();
                     }
                 }
@@ -197,7 +216,7 @@ getUserData = function(tabName) {
                 getUserMessages('Home');
             }
             else {
-                console.log("[Error] GET_USER_DATA ("+con.readyState+")");
+                //console.log("[Error] GET_USER_DATA ("+con.readyState+")");
             }
         }
         con.open("GET", '/get_user_data_by_token?token='+token, true);
@@ -213,7 +232,7 @@ getUserData = function(tabName) {
                 if (response['status'] == 200) {
                     document.getElementById("browseAlert").innerHTML = "";
 			        document.getElementById("ifUserFounded").style.display = 'block';
-			        var data = "Email: " + response['result'][1] + "<br>" + "Firstname: " + response['result'][3] + "<br>" + "Familyname: " + response['result'][4] + "<br>" + "Gender: " + response['result'][5] + "<br>" + "City: " + response['result'][6] + "<br>" + "Country: " + response['result'][7] + "<br>";
+			        var data = "Email: " + response['result'][0] + "<br>" + "Firstname: " + response['result'][2] + "<br>" + "Familyname: " + response['result'][3] + "<br>" + "Gender: " + response['result'][4] + "<br>" + "City: " + response['result'][5] + "<br>" + "Country: " + response['result'][6] + "<br>";
                     document.getElementById("userData"+tabName).innerHTML = data;
                     getUserMessages('Browse');
                 }
@@ -224,7 +243,7 @@ getUserData = function(tabName) {
                 }
             }
             else {
-                console.log("[Error] GET_USER_DATA ("+con.readyState+")");
+                //console.log("[Error] GET_USER_DATA ("+con.readyState+")");
             }
         }
         con.open("GET", '/get_user_data_by_email?token='+token+'&email='+email, true);
@@ -235,13 +254,16 @@ getUserData = function(tabName) {
 getUserTextarea = function(tabName) {
 	var token = localStorage.getItem("token");
 	var text = document.getElementById("userTextarea"+tabName).value;
+    var notified_email = "";
 	if (text != "") {
 		var email = "";
 		if (tabName == "Home") {
-			   email = "";
+            email = "";
+            notified_email = localStorage.getItem('email');
 		}
 		else {
             email = document.getElementById("userEmail").value;
+            notified_email = email;
         }
         var infoObj = JSON.stringify({
             'token':token,
@@ -254,9 +276,10 @@ getUserTextarea = function(tabName) {
                 var response = JSON.parse(con.responseText);
                 console.log("[Success] GET_USER_TEXTAREA ("+con.readyState+")");
                 document.getElementById("userTextarea"+tabName).value = "";
+                socket.send(JSON.stringify({"signal":"NOTIFY_POST", "data":notified_email}));
             }
             else {
-                console.log("[Error] GET_USER_TEXTAREA ("+con.readyState+")");
+                //console.log("[Error] GET_USER_TEXTAREA ("+con.readyState+")");
             }
         }
         con.open("POST", '/post_message', true);
@@ -282,7 +305,7 @@ getUserMessages = function(tabName) {
 	            document.getElementById("userMessages"+tabName).innerHTML = messages;
             }
             else {
-                console.log("[Error] GET_USER_MESSAGES ("+con.readyState+")");
+                //console.log("[Error] GET_USER_MESSAGES ("+con.readyState+")");
             }
         }
         con.open("GET", '/get_user_messages_by_token?token='+token, true);
@@ -303,7 +326,7 @@ getUserMessages = function(tabName) {
 	            document.getElementById("userMessages"+tabName).innerHTML = messages;
             }
             else {
-                console.log("[Error] GET_USER_MESSAGES ("+con.readyState+")");
+                //console.log("[Error] GET_USER_MESSAGES ("+con.readyState+")");
                 //return false;
             }
         }
@@ -341,7 +364,7 @@ changePassword = function() {
             }
         }
         else {
-            console.log("[Error] CHANGE_PASSWORD ("+con.readyState+")");
+            //console.log("[Error] CHANGE_PASSWORD ("+con.readyState+")");
         }
     }
     con.open("POST", '/change_password', true);
@@ -350,20 +373,66 @@ changePassword = function() {
 };
 
 
-signOut = function() {
+signOut = function(flag) {  // GOOD, KICK
+    //socket.close();
 	var token = localStorage.getItem('token');
+    var email = localStorage.getItem('email');
     var con = new XMLHttpRequest();
         con.onreadystatechange = function() {
             if (con.readyState == 4 && con.status == 200) {
                 var response = JSON.parse(con.responseText);
                 console.log("[Success] SIGN_OUT ("+con.readyState+")");
+                if (flag == 'GOOD'){
+                    socket.send(JSON.stringify({"signal":"NOTIFY_LOGOUT", "data":email}));
+                }
                 localStorage.removeItem('token');
+                localStorage.removeItem('email');
                 displayWelcomeView();
             }
             else {
-                console.log("[Error] SIGN_OUT ("+con.readyState+")");
+                //console.log("[Error] SIGN_OUT ("+con.readyState+")");
             }
         }
         con.open("GET", '/sign_out?token='+token, true);
         con.send(null);
+};
+
+addViewedTime = function() {
+    var viewed_email = document.getElementById("userEmail").value;
+    var con = new XMLHttpRequest();
+    con.onreadystatechange = function() {
+        if (con.readyState == 4 && con.status == 200) {
+            var response = JSON.parse(con.responseText);
+            console.log("[Success] ADD_VIEWED_TIME ("+con.readyState+")");
+            socket.send(JSON.stringify({'signal':"NOTIFY_POST", 'data':viewed_email}))
+        }
+        else {
+            //console.log("[Error] SHOW_CHART ("+con.readyState+")");
+        }
+    }
+    con.open("GET", '/add_viewed_time?viewed_email='+viewed_email, true);
+    con.send(null);
+};
+
+
+showChart = function() {
+    var email = localStorage.getItem('email');
+    var con = new XMLHttpRequest();
+    con.onreadystatechange = function() {
+        if (con.readyState == 4 && con.status == 200) {
+            var response = JSON.parse(con.responseText);
+            console.log("[Success] SHOW_CHART ("+con.readyState+")");
+            //var data = [response['num_cur_onlines'], response['num_posts'], response['num_views']]
+            var data = [{"label":"online","value":response['num_cur_onlines']},{"label":"post","value":response['num_posts']},{"label":"view","value":response['num_views']}]
+            console.log(data);
+            d3.select(".chart").selectAll("div").remove();
+            //d3.select(".chart").selectAll("div").data(data).enter().append("div").style("width", function(d) { return d * 10 + "px"; }).text(function(d) { return d; });
+            d3.select(".chart").selectAll("div").data(data).enter().append("div").style("width", function(d) { return d.value * 10 + "px"; }).text(function(d) { return d.value; }).yLabel(function(d){return d.label;});
+        }
+        else {
+            //console.log("[Error] SHOW_CHART ("+con.readyState+")");
+        }
+    }
+    con.open("GET", '/show_chart?email='+email, true);
+    con.send(null);
 };

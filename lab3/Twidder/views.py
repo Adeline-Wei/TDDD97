@@ -22,7 +22,7 @@ def sign_in():
         token = ""
         for i in range(0, 36):
             token += letters[random.randint(0, 61)]
-        database_helper.add_sign_in_user(result[0], data['email'], token)
+        database_helper.add_sign_in_user(data['email'], token)
         return jsonify({"status": 200, "token": token})
     else:
         return jsonify({"status": 400})
@@ -66,7 +66,7 @@ def get_user_data_by_token():
     token = request.args.get('token')
     result = database_helper.find_sign_in_user(token)
     if result:
-        return jsonify({"data":{"email":result[1],"firstname":result[2],"familyname":result[3],"gender":result[4],"city":result[5],"country":result[6]}, "status": 200})
+        return jsonify({"data":{"email":result[0],"firstname":result[1],"familyname":result[2],"gender":result[3],"city":result[4],"country":result[5]}, "status": 200})
     else:
         return jsonify({"status": 400})
 #
@@ -90,9 +90,10 @@ def get_user_data_by_email():
 @app.route("/get_user_messages_by_token")
 def get_user_messages_by_token():
     token = request.args.get('token')   # Get the token from the URL
+    print('current_user[UP]:', token)
     result, messages = database_helper.find_user_message(token)
     if result:
-        return jsonify(result=result,messages=messages)
+        return jsonify(result=result, messages=messages)
     else:
         return jsonify({"status": 400})
 #
@@ -101,7 +102,7 @@ def get_user_messages_by_token():
 def get_user_messages_by_email():
     token = request.args.get('token')
     email = request.args.get('email')
-    result, messages = database_helper.find_user_message(token=token,email=email)
+    result, messages = database_helper.find_user_message(token=token,search_email=email)
     if result:
         return jsonify(result=result,messages=messages)
     else:
@@ -118,19 +119,60 @@ def post_message():
         return jsonify({"status": 400})
 
 
-@app.route('/check_unique_login')
-def check_unique_login():
+# @app.route('/check_unique_login')
+# def check_unique_login():
+#     if request.environ.get('wsgi.websocket'):
+#         ws = request.environ['wsgi.websocket']
+#         while True:
+#             email = ws.receive()
+#             try:
+#                 active_connections[email].send('BYE')
+#                 active_connections[email] = ws
+#             except KeyError:
+#                 for active_connection in active_connections.keys():
+#                     active_connections[active_connection].send('NEW_LOGIN')
+#                 active_connections[email] = ws
+#     return
+@app.route('/send_notification')
+def send_notification():
     if request.environ.get('wsgi.websocket'):
         ws = request.environ['wsgi.websocket']
         while True:
-            email = ws.receive()
-            try:
-                active_connections[email].send('BYE')
-                active_connections[email] = ws
-            except KeyError:
-                active_connections[email] = ws
+            message = ws.receive()
+            message = json.loads(message)
+            if message['signal'] == 'NOTIFY_LOGIN':
+                try:
+                    active_connections[message['data']].send('BYE')
+                    active_connections[message['data']] = ws
+                except KeyError:
+                    active_connections[message['data']] = ws
+                for active_connection in active_connections.keys():
+                        active_connections[active_connection].send('NEW_LOGIN')
+            elif message['signal'] == 'NOTIFY_LOGOUT':
+                print(active_connections)
+                del active_connections[message['data']]
+                print(active_connections)
+                for active_connection in active_connections.keys():
+                        active_connections[active_connection].send('NEW_LOGOUT')
+            elif message['signal'] == 'NOTIFY_POST':
+                active_connections[message['data']].send('NEW_POST')
+            else:
+                pass
     return
 
+
+@app.route('/add_viewed_time')
+def add_viewed_time():
+    viewed_email = request.args.get('viewed_email')
+    result = database_helper.add_viewed_time(viewed_email)
+    return jsonify(result=result)
+
+
+@app.route('/show_chart')
+def show_chart():
+    email = request.args.get('email')
+    num_cur_onlines, num_posts, num_views = database_helper.show_chart(email)
+    return jsonify({'num_cur_onlines': num_cur_onlines, 'num_posts': num_posts, 'num_views': num_views})
 
 
 DATABASE = 'database.db'
