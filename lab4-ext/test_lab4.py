@@ -21,11 +21,8 @@ class WebProgrammingLab4(unittest.TestCase):
 		driver.find_element(By.NAME, 'emailsignin').send_keys('111@gmail.com')
 		driver.find_element(By.NAME, 'pwsignin').send_keys('111111')
 		driver.find_element(By.NAME, 'login').click()
-		driver.implicitly_wait(2)
-		try:
-			driver.find_element(By.CLASS_NAME, 'tab')
-		except NoSuchElementException:
-			print('NoSuchElementException')
+		time.sleep(0.5)
+		self.assertTrue(driver.find_element(By.CLASS_NAME, 'tab'))
 		
 
 	def test_02_post_a_message(self):
@@ -68,6 +65,8 @@ class WebProgrammingLab4(unittest.TestCase):
 		WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.NAME, 'account')))
 		driver.find_element(By.NAME, 'account').click()
 		driver.find_element(By.NAME, 'signout').click()
+		time.sleep(0.5)
+		self.assertTrue(driver.find_element(By.CLASS_NAME, 'slogan'))
 
 
 if __name__ == '__main__':
