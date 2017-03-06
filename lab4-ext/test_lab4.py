@@ -15,6 +15,7 @@ class WebProgrammingLab4(unittest.TestCase):
 		cls.driver.get('http://127.0.0.1:5004/')
 		cls.verificationErrors = []		
 
+
 	def test_01_log_in(self):
 		driver = self.driver
 		self.assertIn('TDDD97', driver.title)
