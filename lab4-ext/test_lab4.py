@@ -26,7 +26,6 @@ class WebProgrammingLab4(unittest.TestCase):
 			driver.find_element(By.CLASS_NAME, 'tab')
 		except NoSuchElementException:
 			print('NoSuchElementException')
-		#self.assertEqual(len(driver.find_element(By.CLASS_NAME, 'tab')), 1)
 		
 
 	def test_02_post_a_message(self):
@@ -72,7 +71,6 @@ class WebProgrammingLab4(unittest.TestCase):
 
 
 if __name__ == '__main__':
-	#unittest.main()
 	suite = unittest.TestLoader().loadTestsFromTestCase(WebProgrammingLab4)
 	unittest.TextTestRunner(verbosity=2).run(suite)
 
