@@ -1,4 +1,5 @@
 var socket = "";
+var PORT = "5004";
 
 notificationHandler = function(signal){
     if (signal == "BYE") {
@@ -16,7 +17,6 @@ displayWelcomeView = function(){
 	var wv = document.getElementById("welcomeview");
     document.body.innerHTML = wv.text;
 };
-
 
 displayProfileView = function(){
     var pv = document.getElementById("profileview");
@@ -38,6 +38,7 @@ window.onload = function(){
 };
 
 //========================== WELCOME VIEW ==========================//
+
 //Sign In
 sendSignInInformation = function(){
     var email = document.getElementsByName("emailsignin")[0].value;
@@ -52,7 +53,7 @@ sendSignInInformation = function(){
             console.log("[Success] SIGN_IN ("+con.readyState+")");
             var response = JSON.parse(con.responseText);
             if (response['status'] == 200) {
-                socket = new WebSocket("ws://127.0.0.1:5001/send_notification");
+                socket = new WebSocket("ws://127.0.0.1:"+PORT+"/send_notification");
                 socket.onopen = function() {
                     console.log("SEND LOGIN NOTIFICATION");
                     socket.send(JSON.stringify({"signal":"NOTIFY_LOGIN","data":email}));
@@ -85,13 +86,11 @@ sendSignInInformation = function(){
 signInValidation = function() {
     var password = document.getElementsByName("pwsignin")[0].value;
     if (password.length < 5){
-        document.getElementById("signInAlert").innerHTML = "The length of password should be more than 5.";
+        document.getElementById("signInAlert").innerHTML = "Password should be more than 5";
         return false;
     }
     sendSignInInformation();
 };
-
-
 
 // Sign Up
 sendSignUpInformation = function(){
@@ -159,11 +158,11 @@ signUpValidation = function() {
     var password1 = document.getElementsByName("pwsignup")[0].value;
     var password2 = document.getElementsByName("repeatpsw")[0].value;
     if (password1.length < 5){
-        document.getElementById("signUpAlert").innerHTML = "The length of password should be more than 5.";
+        document.getElementById("signUpAlert").innerHTML = "Password should be more than 5";
         return false;
     }
     if (password1 != password2){
-        document.getElementById("signUpAlert").innerHTML = "Password is incorrect.";
+        document.getElementById("signUpAlert").innerHTML = "Password is incorrect";
         return false;
     }
     sendSignUpInformation();
@@ -327,14 +326,12 @@ getUserMessages = function(tabName) {
             }
             else {
                 //console.log("[Error] GET_USER_MESSAGES ("+con.readyState+")");
-                //return false;
             }
         }
         con.open("GET", '/get_user_messages_by_email?token='+token+'&email='+email, true);
         con.send(null);
 	}
 };
-
 
 
 // Account
@@ -371,7 +368,6 @@ changePassword = function() {
     con.setRequestHeader("Content-Type", "application/json");
     con.send(infoObj);
 };
-
 
 signOut = function(flag) {  // GOOD, KICK
 	var token = localStorage.getItem('token');
@@ -413,7 +409,6 @@ addViewedTime = function() {
     con.send(null);
 };
 
-
 showChart = function() {
     var email = localStorage.getItem('email');
     var con = new XMLHttpRequest();
@@ -421,12 +416,10 @@ showChart = function() {
         if (con.readyState == 4 && con.status == 200) {
             var response = JSON.parse(con.responseText);
             console.log("[Success] SHOW_CHART ("+con.readyState+")");
-            var data = [response['num_cur_onlines'], response['num_posts'], response['num_views']]
-            //var data = [{"label":"online","value":response['num_cur_onlines']},{"label":"post","value":response['num_posts']},{"label":"view","value":response['num_views']}]
+            var data = [{"label":"online","value":response['num_cur_onlines']},{"label":"post","value":response['num_posts']},{"label":"view","value":response['num_views']}]
             console.log(data);
             d3.select(".chart").selectAll("div").remove();
-            d3.select(".chart").selectAll("div").data(data).enter().append("div").style("width", function(d) { return d * 10 + "px"; }).text(function(d) { return d; });
-            //d3.select(".chart").selectAll("div").data(data).enter().append("div").style("width", function(d) { return d.value * 10 + "px"; }).text(function(d) { return d.value; }).yLabel(function(d){return d.label;});
+            d3.select(".chart").selectAll("div").data(data).enter().append("div").text(function(d){return d.label;}).append("div").style("width", function(d) { return d.value * 10 + "px"; }).text(function(d) { return d.value; });
         }
         else {
             //console.log("[Error] SHOW_CHART ("+con.readyState+")");
@@ -436,7 +429,7 @@ showChart = function() {
     con.send(null);
 };
 
-
+// Drag and Drop
 allowDrop = function(ev) {
     ev.preventDefault();
 };
