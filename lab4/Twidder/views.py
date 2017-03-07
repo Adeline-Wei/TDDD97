@@ -13,6 +13,7 @@ app = Flask(__name__)
 # Store webSockets
 active_connections = dict()
 
+
 @app.route("/sign_in", methods=['POST'])
 def sign_in():
     """
@@ -31,8 +32,6 @@ def sign_in():
         return jsonify({"status": 400})
 
 
-
-
 @app.route("/sign_up", methods=['POST'])
 def sign_up():
     """
@@ -45,8 +44,8 @@ def sign_up():
         return jsonify({"status": 200})
     else:
         return jsonify({"status": 404})
-#
-#
+
+
 @app.route("/sign_out")
 def sign_out():
     """
@@ -58,8 +57,8 @@ def sign_out():
         return jsonify({"status": 200})
     else:
         return jsonify({"status": 400})
-#
-#
+
+
 @app.route("/change_password", methods=['POST'])
 def change_password():
     """
@@ -71,8 +70,8 @@ def change_password():
         return jsonify({"status": 200})
     else:
         return jsonify({"status": 400})
-#
-#
+
+
 @app.route("/get_user_data_by_token")
 def get_user_data_by_token():
     """
@@ -84,8 +83,8 @@ def get_user_data_by_token():
         return jsonify({"data":{"email":result[0],"firstname":result[1],"familyname":result[2],"gender":result[3],"city":result[4],"country":result[5]}, "status": 200})
     else:
         return jsonify({"status": 400})
-#
-#
+
+
 @app.route("/get_user_data_by_email")
 def get_user_data_by_email():
     """
@@ -103,8 +102,7 @@ def get_user_data_by_email():
     else:
         return jsonify({"status": 400})
 
-#
-#
+
 @app.route("/get_user_messages_by_token")
 def get_user_messages_by_token():
     """
@@ -117,8 +115,8 @@ def get_user_messages_by_token():
         return jsonify(result=result, messages=messages)
     else:
         return jsonify({"status": 400})
-#
-#
+
+
 @app.route("/get_user_messages_by_email")
 def get_user_messages_by_email():
     """
@@ -131,8 +129,8 @@ def get_user_messages_by_email():
         return jsonify(result=result,messages=messages)
     else:
         return jsonify({"status": 400})
-#
-#
+
+
 @app.route("/post_message", methods=['POST'])
 def post_message():
     """
@@ -211,9 +209,11 @@ DATABASE = 'database.db'
 def index():
     return app.send_static_file('client.html')
 
+
 def init_database():
     with app.app_context():
         database_helper.init_db(DATABASE)
+
 
 if __name__ == "__main__":
     init_database()
