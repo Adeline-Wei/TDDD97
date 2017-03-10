@@ -208,18 +208,6 @@ def show_chart():
     return jsonify({'num_cur_onlines': num_cur_onlines, 'num_posts': num_posts, 'num_views': num_views})
 
 
-@app.route('/reconnect_socket')
-def reconnect_socket():
-    print("RECONNECT_SOCKET")
-    print(active_connections)
-    if request.environ.get('wsgi.websocket'):
-        ws = request.environ['wsgi.websocket']
-        while True:
-            message = ws.receive()
-            active_connections[message] = ws
-            print(active_connections)
-
-
 DATABASE = 'database.db'
 
 @app.route("/")
