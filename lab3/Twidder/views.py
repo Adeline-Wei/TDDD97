@@ -5,16 +5,21 @@ from flask import Flask, jsonify, request
 from Twidder import database_helper
 from gevent.wsgi import WSGIServer
 from geventwebsocket.handler import WebSocketHandler
+from geventwebsocket.websocket import WebSocketError
 from Twidder import app
 import json
 
 app = Flask(__name__)
 
-
+# Store webSockets
 active_connections = dict()
+
 
 @app.route("/sign_in", methods=['POST'])
 def sign_in():
+    """
+    :return: status 200 and a token if sign in successfully, otherwise status 400.
+    """
     data = request.get_json()
     result = database_helper.find_user(data['email'], password=data['password'], status='LOGIN')
     if result:
@@ -28,10 +33,11 @@ def sign_in():
         return jsonify({"status": 400})
 
 
-
-
 @app.route("/sign_up", methods=['POST'])
 def sign_up():
+    """
+    :return: status 200 if sign up successfully, otherwise 400.
+    """
     data = request.get_json()
     result = database_helper.add_user(data['email'], data['password'], data['firstname'], data['familyname'], data['gender'], data['city'], data['country'])
 
@@ -39,43 +45,55 @@ def sign_up():
         return jsonify({"status": 200})
     else:
         return jsonify({"status": 404})
-#
-#
+
+
 @app.route("/sign_out")
 def sign_out():
+    """
+    :return: status 200 if sign out successfully, otherwise 400.
+    """
     token = request.args.get('token')
     result = database_helper.remove_sign_in_user(token)
     if result:
         return jsonify({"status": 200})
     else:
         return jsonify({"status": 400})
-#
-#
+
+
 @app.route("/change_password", methods=['POST'])
 def change_password():
+    """
+    :return: status 200 if change password successfully, otherwise 400.
+    """
     data = request.get_json()
     result = database_helper.change_password(data['token'], data['old_pw'], data['new_pw'])
     if result:
         return jsonify({"status": 200})
     else:
         return jsonify({"status": 400})
-#
-#
+
+
 @app.route("/get_user_data_by_token")
 def get_user_data_by_token():
+    """
+    :return: status 200 and user information if get user data successfully, otherwise status 400.
+    """
     token = request.args.get('token')
     result = database_helper.find_sign_in_user(token)
     if result:
         return jsonify({"data":{"email":result[0],"firstname":result[1],"familyname":result[2],"gender":result[3],"city":result[4],"country":result[5]}, "status": 200})
     else:
         return jsonify({"status": 400})
-#
-#
+
+
 @app.route("/get_user_data_by_email")
 def get_user_data_by_email():
-    token = request.args.get('token')   # Get the token from the URL
-    email = request.args.get('email')   # Get the token from the URL
-    result = database_helper.find_sign_in_user(token)   # Make sure the current user has logged in
+    """
+    :return: status 200 and user information (except his/her password) if get data successfully, otherwise status 400.
+    """
+    token = request.args.get('token')
+    email = request.args.get('email')
+    result = database_helper.find_sign_in_user(token)
     if result:
         result = database_helper.find_user(email)
         if result:
@@ -85,21 +103,26 @@ def get_user_data_by_email():
     else:
         return jsonify({"status": 400})
 
-#
-#
+
 @app.route("/get_user_messages_by_token")
 def get_user_messages_by_token():
-    token = request.args.get('token')   # Get the token from the URL
+    """
+    :return: finding result and messages of a user if get messages successfully, otherwise status 400.
+    """
+    token = request.args.get('token')
     print('current_user[UP]:', token)
     result, messages = database_helper.find_user_message(token)
     if result:
         return jsonify(result=result, messages=messages)
     else:
         return jsonify({"status": 400})
-#
-#
+
+
 @app.route("/get_user_messages_by_email")
 def get_user_messages_by_email():
+    """
+    :return: finding result and messages of a user if get messages successfully, otherwise status 400.
+    """
     token = request.args.get('token')
     email = request.args.get('email')
     result, messages = database_helper.find_user_message(token=token,search_email=email)
@@ -107,10 +130,13 @@ def get_user_messages_by_email():
         return jsonify(result=result,messages=messages)
     else:
         return jsonify({"status": 400})
-#
-#
+
+
 @app.route("/post_message", methods=['POST'])
 def post_message():
+    """
+    :return: posting result if post a message successfully, otherwise status 400.
+    """
     data = request.get_json()
     result = database_helper.add_message(data['token'], data['message'], data['email'])
     if result:
@@ -121,35 +147,39 @@ def post_message():
 
 @app.route('/send_notification')
 def send_notification():
+    """
+    Send notifications to corresponding users according to different situations.
+    :return: None
+    """
     if request.environ.get('wsgi.websocket'):
         ws = request.environ['wsgi.websocket']
         while True:
-            message = ws.receive()
-            message = json.loads(message)
-            if message['signal'] == 'NOTIFY_LOGIN':
+            try:
+                message = ws.receive()
                 try:
-                    active_connections[message['data']].send('BYE')
-                    active_connections[message['data']] = ws
-                except KeyError:
-                    active_connections[message['data']] = ws
-                for active_connection in active_connections.keys():
-                        active_connections[active_connection].send('NEW_LOGIN')
-            elif message['signal'] == 'NOTIFY_LOGOUT':
-                print(active_connections)
-                del active_connections[message['data']]
-                print(active_connections)
-            else:
-                pass
+                    message = json.loads(message)
+                    if message['signal'] == 'NOTIFY_LOGIN':
+                        if database_helper.find_sign_in_user(message['data'][1]):
+                            if message['data'][0] in active_connections.keys():
+                                try:
+                                    active_connections[message['data'][0]].send('BYE')
+                                except WebSocketError:
+                                    print("[WEB_SOCKET_ERROR] DUE_TO_REFRESH")
+                            active_connections[message['data'][0]] = ws
+                            for active_connection in active_connections.keys():
+                                active_connections[active_connection].send('NEW_LOGIN')
+                    elif message['signal'] == 'NOTIFY_LOGOUT':
+                        del active_connections[message['data'][0]]
+                        for active_connection in active_connections.keys():
+                            active_connections[active_connection].send('NEW_LOGOUT')
+                    else:
+                        pass
+                except TypeError:
+                    print('[SEND_NOTIFICATION] JSON DECODE')
+            except WebSocketError:
+                print('[WEB_SOCKET_ERROR] CONNECTION IS ALREADY CLOSED')
+                break
     return
-
-
-@app.route('/add_viewed_time')
-def add_viewed_time():
-    viewed_email = request.args.get('viewed_email')
-    result = database_helper.add_viewed_time(viewed_email)
-    return jsonify(result=result)
-
-
 
 
 DATABASE = 'database.db'
@@ -158,11 +188,13 @@ DATABASE = 'database.db'
 def index():
     return app.send_static_file('client.html')
 
+
 def init_database():
     with app.app_context():
         database_helper.init_db(DATABASE)
 
+
 if __name__ == "__main__":
     init_database()
-    http_server = WSGIServer(('', 5001), app, handler_class=WebSocketHandler)
+    http_server = WSGIServer(('', 5004), app, handler_class=WebSocketHandler)
     http_server.serve_forever()

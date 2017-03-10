@@ -1,4 +1,5 @@
 var socket = "";
+var PORT = "5004";
 
 notificationHandler = function(signal){
     if (signal == "BYE") {
@@ -11,7 +12,6 @@ displayWelcomeView = function(){
     document.body.innerHTML = wv.text;
 };
 
-
 displayProfileView = function(){
     var pv = document.getElementById("profileview");
     document.body.innerHTML = pv.text;
@@ -19,18 +19,41 @@ displayProfileView = function(){
 	// Show the default tab
 	document.getElementById('Home').style.display = "block";
 	getUserData('Home');
+    showChart();
 };
 
 window.onload = function(){
+    console.log("onload");
 	if (localStorage.getItem("token") == null) {
 		displayWelcomeView();	
 	}
     else {
+        if (localStorage.getItem("reload")) {
+            var email = localStorage.getItem("email");
+            var token = localStorage.getItem("token");
+            socket = new WebSocket("ws://127.0.0.1:"+PORT+"/send_notification");
+            socket.onopen = function() {
+                socket.send(JSON.stringify({"signal":"NOTIFY_LOGIN","data":[email, token]}));
+            }
+            socket.onmessage = function (event) {
+                notificationHandler(event.data);
+            }
+            socket.onerror = function (error) {
+                console.log(error);
+            }
+        }
         displayProfileView();
+
     }
 };
 
+window.onbeforeunload = function(e) {
+    if (localStorage.getItem("token")) {
+        localStorage.setItem("reload", true);
+    }
+};
 //========================== WELCOME VIEW ==========================//
+
 //Sign In
 sendSignInInformation = function(){
     var email = document.getElementsByName("emailsignin")[0].value;
@@ -45,10 +68,10 @@ sendSignInInformation = function(){
             console.log("[Success] SIGN_IN ("+con.readyState+")");
             var response = JSON.parse(con.responseText);
             if (response['status'] == 200) {
-                socket = new WebSocket("ws://127.0.0.1:5001/send_notification");
+                socket = new WebSocket("ws://127.0.0.1:"+PORT+"/send_notification");
                 socket.onopen = function() {
                     console.log("SEND LOGIN NOTIFICATION");
-                    socket.send(JSON.stringify({"signal":"NOTIFY_LOGIN","data":email}));
+                    socket.send(JSON.stringify({"signal":"NOTIFY_LOGIN","data":[email, response['token']]}));
                 }
                 socket.onmessage = function (event) {
                     console.log("[ONMESSAGE] ", event.data);
@@ -78,13 +101,11 @@ sendSignInInformation = function(){
 signInValidation = function() {
     var password = document.getElementsByName("pwsignin")[0].value;
     if (password.length < 5){
-        document.getElementById("signInAlert").innerHTML = "The length of password should be more than 5.";
+        document.getElementById("signInAlert").innerHTML = "Password should be more than 5";
         return false;
     }
     sendSignInInformation();
 };
-
-
 
 // Sign Up
 sendSignUpInformation = function(){
@@ -125,7 +146,7 @@ sendSignUpInformation = function(){
                         if (socket == "") {
                             socket = new WebSocket("ws://127.0.0.1:5001/send_notification");
                             socket.onopen = function () {
-                                socket.send(JSON.stringify({"signal": "NOTIFY_LOGIN", "data": email}));
+                                socket.send(JSON.stringify({"signal": "NOTIFY_LOGIN", "data": [email, response2['token']]}));
                             }
                         }
                         displayProfileView();
@@ -152,11 +173,11 @@ signUpValidation = function() {
     var password1 = document.getElementsByName("pwsignup")[0].value;
     var password2 = document.getElementsByName("repeatpsw")[0].value;
     if (password1.length < 5){
-        document.getElementById("signUpAlert").innerHTML = "The length of password should be more than 5.";
+        document.getElementById("signUpAlert").innerHTML = "Password should be more than 5";
         return false;
     }
     if (password1 != password2){
-        document.getElementById("signUpAlert").innerHTML = "Password is incorrect.";
+        document.getElementById("signUpAlert").innerHTML = "Password is incorrect";
         return false;
     }
     sendSignUpInformation();
@@ -269,7 +290,6 @@ getUserTextarea = function(tabName) {
                 var response = JSON.parse(con.responseText);
                 console.log("[Success] GET_USER_TEXTAREA ("+con.readyState+")");
                 document.getElementById("userTextarea"+tabName).value = "";
-                socket.send(JSON.stringify({"signal":"NOTIFY_POST", "data":notified_email}));
             }
             else {
                 //console.log("[Error] GET_USER_TEXTAREA ("+con.readyState+")");
@@ -293,7 +313,7 @@ getUserMessages = function(tabName) {
                 console.log(objs);
 	            var messages = "";
 	            for (var i in objs) {
-		            messages = messages + (objs[i][0] + " said: " + objs[i][1] + "<br>");
+		            messages = messages+"<div draggable='true' ondragstart='drag(event)' id='drag"+i+"'>"+(objs[i][0]+"said: "+objs[i][1]+"</div>");
 	            }
 	            document.getElementById("userMessages"+tabName).innerHTML = messages;
             }
@@ -320,14 +340,12 @@ getUserMessages = function(tabName) {
             }
             else {
                 //console.log("[Error] GET_USER_MESSAGES ("+con.readyState+")");
-                //return false;
             }
         }
         con.open("GET", '/get_user_messages_by_email?token='+token+'&email='+email, true);
         con.send(null);
 	}
 };
-
 
 
 // Account
@@ -365,9 +383,8 @@ changePassword = function() {
     con.send(infoObj);
 };
 
-
 signOut = function(flag) {  // GOOD, KICK
-    //socket.close();
+    console.log("SIGN_OUT");
 	var token = localStorage.getItem('token');
     var email = localStorage.getItem('email');
     var con = new XMLHttpRequest();
@@ -376,10 +393,11 @@ signOut = function(flag) {  // GOOD, KICK
                 var response = JSON.parse(con.responseText);
                 console.log("[Success] SIGN_OUT ("+con.readyState+")");
                 if (flag == 'GOOD'){
-                    socket.send(JSON.stringify({"signal":"NOTIFY_LOGOUT", "data":email}));
+                    socket.send(JSON.stringify({"signal":"NOTIFY_LOGOUT", "data":[email,token]}));
                 }
                 localStorage.removeItem('token');
                 localStorage.removeItem('email');
+                localStorage.removeItem('reload');
                 displayWelcomeView();
             }
             else {
@@ -388,21 +406,4 @@ signOut = function(flag) {  // GOOD, KICK
         }
         con.open("GET", '/sign_out?token='+token, true);
         con.send(null);
-};
-
-addViewedTime = function() {
-    var viewed_email = document.getElementById("userEmail").value;
-    var con = new XMLHttpRequest();
-    con.onreadystatechange = function() {
-        if (con.readyState == 4 && con.status == 200) {
-            var response = JSON.parse(con.responseText);
-            console.log("[Success] ADD_VIEWED_TIME ("+con.readyState+")");
-            socket.send(JSON.stringify({'signal':"NOTIFY_POST", 'data':viewed_email}))
-        }
-        else {
-            //console.log("[Error] SHOW_CHART ("+con.readyState+")");
-        }
-    }
-    con.open("GET", '/add_viewed_time?viewed_email='+viewed_email, true);
-    con.send(null);
 };
