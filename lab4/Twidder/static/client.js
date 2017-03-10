@@ -29,14 +29,37 @@ displayProfileView = function(){
 };
 
 window.onload = function(){
+    console.log("onload");
 	if (localStorage.getItem("token") == null) {
 		displayWelcomeView();	
 	}
     else {
+        if (localStorage.getItem("reload")) {
+            var email = localStorage.getItem("email");
+            var token = localStorage.getItem("token");
+            socket = new WebSocket("ws://127.0.0.1:"+PORT+"/send_notification");
+            socket.onopen = function() {
+                console.log("REFRESH");
+                socket.send(JSON.stringify({"signal":"NOTIFY_LOGIN","data":[email, token]}));
+            }
+            socket.onmessage = function (event) {
+                console.log(event.data);
+                notificationHandler(event.data);
+            }
+            socket.onerror = function (error) {
+                console.log(error);
+            }
+        }
         displayProfileView();
+
     }
 };
 
+window.onbeforeunload = function(e) {
+    if (localStorage.getItem("token")) {
+        localStorage.setItem("reload", true);
+    }
+};
 //========================== WELCOME VIEW ==========================//
 
 //Sign In
@@ -56,7 +79,7 @@ sendSignInInformation = function(){
                 socket = new WebSocket("ws://127.0.0.1:"+PORT+"/send_notification");
                 socket.onopen = function() {
                     console.log("SEND LOGIN NOTIFICATION");
-                    socket.send(JSON.stringify({"signal":"NOTIFY_LOGIN","data":email}));
+                    socket.send(JSON.stringify({"signal":"NOTIFY_LOGIN","data":[email, response['token']]}));
                 }
                 socket.onmessage = function (event) {
                     console.log("[ONMESSAGE] ", event.data);
@@ -131,7 +154,7 @@ sendSignUpInformation = function(){
                         if (socket == "") {
                             socket = new WebSocket("ws://127.0.0.1:5001/send_notification");
                             socket.onopen = function () {
-                                socket.send(JSON.stringify({"signal": "NOTIFY_LOGIN", "data": email}));
+                                socket.send(JSON.stringify({"signal": "NOTIFY_LOGIN", "data": [email, response2['token']]}));
                             }
                         }
                         displayProfileView();
@@ -275,7 +298,7 @@ getUserTextarea = function(tabName) {
                 var response = JSON.parse(con.responseText);
                 console.log("[Success] GET_USER_TEXTAREA ("+con.readyState+")");
                 document.getElementById("userTextarea"+tabName).value = "";
-                socket.send(JSON.stringify({"signal":"NOTIFY_POST", "data":notified_email}));
+                socket.send(JSON.stringify({"signal":"NOTIFY_POST", "data":[notified_email, token]}));
             }
             else {
                 //console.log("[Error] GET_USER_TEXTAREA ("+con.readyState+")");
@@ -370,6 +393,7 @@ changePassword = function() {
 };
 
 signOut = function(flag) {  // GOOD, KICK
+    console.log("SIGN_OUT");
 	var token = localStorage.getItem('token');
     var email = localStorage.getItem('email');
     var con = new XMLHttpRequest();
@@ -378,10 +402,11 @@ signOut = function(flag) {  // GOOD, KICK
                 var response = JSON.parse(con.responseText);
                 console.log("[Success] SIGN_OUT ("+con.readyState+")");
                 if (flag == 'GOOD'){
-                    socket.send(JSON.stringify({"signal":"NOTIFY_LOGOUT", "data":email}));
+                    socket.send(JSON.stringify({"signal":"NOTIFY_LOGOUT", "data":[email,token]}));
                 }
                 localStorage.removeItem('token');
                 localStorage.removeItem('email');
+                localStorage.removeItem('reload');
                 displayWelcomeView();
             }
             else {
@@ -394,12 +419,13 @@ signOut = function(flag) {  // GOOD, KICK
 
 addViewedTime = function() {
     var viewed_email = document.getElementById("userEmail").value;
+    var token = localStorage.getItem("token");
     var con = new XMLHttpRequest();
     con.onreadystatechange = function() {
         if (con.readyState == 4 && con.status == 200) {
             var response = JSON.parse(con.responseText);
             console.log("[Success] ADD_VIEWED_TIME ("+con.readyState+")");
-            socket.send(JSON.stringify({'signal':"NOTIFY_POST", 'data':viewed_email}))
+            socket.send(JSON.stringify({'signal':"NOTIFY_POST", 'data':[viewed_email,token]}))
         }
         else {
             //console.log("[Error] SHOW_CHART ("+con.readyState+")");

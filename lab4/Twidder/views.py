@@ -5,6 +5,7 @@ from flask import Flask, jsonify, request
 from Twidder import database_helper
 from gevent.wsgi import WSGIServer
 from geventwebsocket.handler import WebSocketHandler
+from geventwebsocket.websocket import WebSocketError
 from Twidder import app
 import json
 
@@ -153,33 +154,37 @@ def send_notification():
     if request.environ.get('wsgi.websocket'):
         ws = request.environ['wsgi.websocket']
         while True:
-            message = ws.receive()
             try:
-                message = json.loads(message)
-            except TypeError:
-                print('[SEND_NOTIFICATION] JSON DECODE')
-                print(message)
-            if message['signal'] == 'NOTIFY_LOGIN':
+                message = ws.receive()
                 try:
-                    active_connections[message['data']].send('BYE')
-                    active_connections[message['data']] = ws
-                except KeyError:
-                    active_connections[message['data']] = ws
-                for active_connection in active_connections.keys():
-                        active_connections[active_connection].send('NEW_LOGIN')
-            elif message['signal'] == 'NOTIFY_LOGOUT':
-                print(active_connections)
-                del active_connections[message['data']]
-                print(active_connections)
-                for active_connection in active_connections.keys():
-                        active_connections[active_connection].send('NEW_LOGOUT')
-            elif message['signal'] == 'NOTIFY_POST':
-                try:
-                    active_connections[message['data']].send('NEW_POST')
-                except KeyError:
-                    pass
-            else:
-                pass
+                    message = json.loads(message)
+                    if message['signal'] == 'NOTIFY_LOGIN':
+                        if database_helper.find_sign_in_user(message['data'][1]):
+                            if message['data'][0] in active_connections.keys():
+                                try:
+                                    active_connections[message['data'][0]].send('BYE')
+                                except WebSocketError:
+                                    print("[WEB_SOCKET_ERROR] DUE_TO_REFRESH")
+                            active_connections[message['data'][0]] = ws
+                            for active_connection in active_connections.keys():
+                                active_connections[active_connection].send('NEW_LOGIN')
+                    elif message['signal'] == 'NOTIFY_LOGOUT':
+                        del active_connections[message['data'][0]]
+                        for active_connection in active_connections.keys():
+                            active_connections[active_connection].send('NEW_LOGOUT')
+                    elif message['signal'] == 'NOTIFY_POST':
+                        if database_helper.find_sign_in_user(message['data'][1]):
+                            try:
+                                active_connections[message['data'][0]].send('NEW_POST')
+                            except KeyError:
+                                pass
+                    else:
+                        pass
+                except TypeError:
+                    print('[SEND_NOTIFICATION] JSON DECODE')
+            except WebSocketError:
+                print('[WEB_SOCKET_ERROR] CONNECTION IS ALREADY CLOSED')
+                break
     return
 
 
@@ -201,6 +206,18 @@ def show_chart():
     email = request.args.get('email')
     num_cur_onlines, num_posts, num_views = database_helper.show_chart(email)
     return jsonify({'num_cur_onlines': num_cur_onlines, 'num_posts': num_posts, 'num_views': num_views})
+
+
+@app.route('/reconnect_socket')
+def reconnect_socket():
+    print("RECONNECT_SOCKET")
+    print(active_connections)
+    if request.environ.get('wsgi.websocket'):
+        ws = request.environ['wsgi.websocket']
+        while True:
+            message = ws.receive()
+            active_connections[message] = ws
+            print(active_connections)
 
 
 DATABASE = 'database.db'
