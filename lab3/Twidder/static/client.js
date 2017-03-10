@@ -19,7 +19,6 @@ displayProfileView = function(){
 	// Show the default tab
 	document.getElementById('Home').style.display = "block";
 	getUserData('Home');
-    showChart();
 };
 
 window.onload = function(){
